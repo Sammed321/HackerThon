@@ -55,9 +55,12 @@ export default function StandardsHub() {
   const {
     reels, activeReel, activeId, setActiveId, annotationMap, telemetry,
     exportsDone, markExport, pushToast, setTab,
+    standardsExporter, setStandardsExporter,
   } = useApp();
 
-  const [exporter, setExporter] = useState('iiif');
+  const [localExporter, setLocalExporter] = useState('iiif');
+  const exporter = standardsExporter || localExporter;
+  const setExporter = setStandardsExporter || setLocalExporter;
   const [dcMode, setDcMode] = useState('json');
   const [copied, setCopied] = useState('');
   const [form, setForm] = useState(() => FORM_DEFAULT(activeId));
@@ -124,7 +127,13 @@ export default function StandardsHub() {
 
   const doDownload = (kind) => {
     const f = files[kind];
-    downloadFile(f.name, f.text, kind === 'iiif' ? 'application/ld+json' : 'text/plain;charset=utf-8');
+    let mime = 'text/plain;charset=utf-8';
+    if (kind === 'iiif') mime = 'application/ld+json;charset=utf-8';
+    else if (kind === 'dc') mime = dcMode === 'json' ? 'application/ld+json;charset=utf-8' : 'application/xml;charset=utf-8';
+    else if (kind === 'wiki') mime = 'text/markdown;charset=utf-8';
+    else if (kind === 'csv') mime = 'text/csv;charset=utf-8';
+
+    downloadFile(f.name, f.text, mime);
     if (kind === 'dc') { markExport('dc'); pushToast(`${f.name} downloaded — Dublin Core 1.1, OAI-DC ready.`, 'emerald'); }
     else if (kind === 'wiki') { markExport('wiki'); pushToast(`${f.name} downloaded — Commons-ready Markdown.`, 'emerald'); }
     else if (kind === 'csv') { markExport('csv'); pushToast(`${f.name} downloaded — ${csvTotal} annotations across ${reels.length} reels.`, 'emerald'); }

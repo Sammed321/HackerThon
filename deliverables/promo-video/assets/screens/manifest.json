@@ -1,0 +1,13 @@
+{
+  "url": "http://localhost:5173",
+  "viewport": "1920x1080@2x",
+  "shots": [
+    "assistant-answer.png",
+    "assistant-empty.png",
+    "graph.png",
+    "palette.png",
+    "standards.png",
+    "studio-context-card.png",
+    "studio-default.png"
+  ]
+}

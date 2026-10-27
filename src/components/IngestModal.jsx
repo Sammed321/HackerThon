@@ -71,7 +71,11 @@ export default function IngestModal() {
         setStepIdx(0);
         await runAnalysisSteps();
         setStepIdx(STEPS.length - 1);
-        await ingestMedia(file);
+        await ingestMedia(file, {
+          title: (meta.title || '').trim() || name.replace(/\.[^.]+$/, ''),
+          year: meta.year ? Number(meta.year) : undefined,
+          place: (meta.place || '').trim() || undefined,
+        });
         setTimeout(() => { close(); reset(); }, 700);
       } else {
         // text or json ingest

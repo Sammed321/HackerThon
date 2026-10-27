@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production build
+dist/
+dist-ssr/
+
+# Local cache & logs
+.vite/
+*.local
+.DS_Store
+Thumbs.db
+*.log

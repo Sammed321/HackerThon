@@ -165,16 +165,15 @@ export function ragAnswer(query, ctx) {
   const retrieved = retrieve(query, ctx, corpus);
 
   const wantsGloss = /(explain|meaning|mean|what does|what is|definition|gloss|decodes?|break ?down)/.test(qLower);
-  const wantsEvolution = /(chang|evolv|renam|became|becomes|between|shift|transform|histor(y|ical)|trace|progress|decade)/.test(qLower);
-  const wantsConnect = /(connect|relation|related|between|link|path|network|ties|joins?|across|hidden)/.test(qLower);
+  const wantsEvolution = /(chang|evolv|renam|became|becomes|shift|transform|histor(y|ical)|trace|progress|decade)/.test(qLower) || /(between\s+\d{2,4}\s+and\s+\d{2,4})/i.test(qLower);
+  const wantsConnect = /(connect|relation|related|link|path|network|ties|joins?|across|hidden)/.test(qLower) || (qLower.includes('between') && !wantsEvolution);
   const wantsList = /(list|find all|all (mentions|references|clips|reels|occurrences|appearances)|every occurrence|everywhere|enumerate|collect)/.test(qLower);
   const wantsSummary = /(summar|overview|about this reel|about the clip|what is this|tell me about the (reel|clip|archive)|introduce)/.test(qLower);
   const beginner = /(high school|student|beginner|simply|simple|child|kid)/.test(qLower);
 
-  // 1) Gloss a specific cultural term
-  const entryRef = qRefs.find((r) => r.refKind === 'entry');
-  if (entryRef && (wantsGloss || qLower.split(/\s+/).length <= 4 || beginningQueryEntry(qLower, entryRef.refId))) {
-    return answerGloss(ENTRIES_BY_ID[entryRef.refId], ctx, corpus, retrieved, beginner);
+  // 1) Connections / path questions take precedence when comparing or linking specific entities
+  if (wantsConnect && qRefs.length >= 1) {
+    return answerConnections(query, qRefs, ctx, graph, corpus, retrieved, beginner);
   }
 
   // 2) Evolution / change questions (place renames, movement arcs, technologies)
@@ -182,14 +181,15 @@ export function ragAnswer(query, ctx) {
     return answerEvolution(query, qRefs, ctx, corpus, retrieved, beginner);
   }
 
-  // 3) Connections / path questions
-  if (wantsConnect && qRefs.length >= 1) {
-    return answerConnections(query, qRefs, ctx, graph, corpus, retrieved, beginner);
-  }
-
-  // 4) Enumeration questions
+  // 3) Enumeration questions
   if (wantsList && qRefs.length >= 1) {
     return answerListAll(qRefs[0], ctx, corpus, graph);
+  }
+
+  // 4) Gloss a specific cultural term
+  const entryRef = qRefs.find((r) => r.refKind === 'entry');
+  if (entryRef && (wantsGloss || qLower.split(/\s+/).length <= 4 || beginningQueryEntry(qLower, entryRef.refId))) {
+    return answerGloss(ENTRIES_BY_ID[entryRef.refId], ctx, corpus, retrieved, beginner);
   }
 
   // 5) Summary / overview
@@ -204,8 +204,15 @@ export function ragAnswer(query, ctx) {
 function beginningQueryEntry(qLower, entryId) {
   const entry = ENTRIES_BY_ID[entryId];
   if (!entry) return false;
-  const aliasHit = entry.aliases.find((a) => qLower.includes(a.toLowerCase()));
-  return Boolean(aliasHit);
+  const cleanQ = qLower.replace(/[^\p{L}\p{N}\s]/gu, ' ').trim();
+  return entry.aliases.some((a) => {
+    const norm = a.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').trim();
+    return cleanQ === norm ||
+      cleanQ.startsWith(`${norm} `) ||
+      cleanQ.startsWith(`what is ${norm}`) ||
+      cleanQ.startsWith(`who is ${norm}`) ||
+      cleanQ.startsWith(`tell me about ${norm}`);
+  });
 }
 
 function answerGloss(entry, ctx, corpus, retrieved, beginner) {
@@ -259,8 +266,8 @@ function answerEvolution(query, qRefs, ctx, corpus, retrieved, beginner) {
   const focus = [...new Set(refIds.length ? refIds : ['ev-ekikarana', 'g-reorg1956', 'plc-belgaum', 'plc-mysore-state'])];
   const lines = [];
   const headerScope = ctx.scope === 'reel'
-    ? `the reel **${ctx.activeReel.title}**`
-    : 'the **whole archive**';
+    ? `reel **${ctx.activeReel.title}**`
+    : '**whole archive**';
   lines.push(`Reading the ${headerScope}, here is how the names and meanings shifted across the decades:`);
   lines.push('');
   let rows = 0;
@@ -413,9 +420,23 @@ function answerOverview(ctx, corpus, beginner) {
 }
 
 function answerGrounded(query, ctx, retrieved, graph, corpus, beginner) {
+  const topScore = retrieved[0]?.score || 0;
+  const qTokens = tokenize(query);
+  const scopeName = ctx.scope === 'reel' ? `**${ctx.activeReel.title}**` : 'all four reels';
+
+  // If no matching tokens were retrieved (only ambient active-reel boost or 0):
+  if ((topScore <= 0.81 && qTokens.length > 0) || !retrieved.length) {
+    return {
+      text: `I searched across ${scopeName}, but did not find direct transcript records speaking about "${query}".\n\nTry asking about key historical figures (*Gandhi*, *Kuvempu*, *Bendre*, *Vikram Sarabhai*), regional places (*Belgaum/Belagavi*, *Dharwad*, *Mysore*), or traditions (*Khadi*, *Bayalata*, *Neeruganti*, *Ekikarana*) — or tap one of the demo prompts below.`,
+      citations: [],
+      confidence: 0.45,
+      engine: 'local',
+      followups: DEMO_PROMPTS.slice(0, 3),
+    };
+  }
+
   const cits = pickCitations(retrieved, 4);
   const lines = [];
-  const scopeName = ctx.scope === 'reel' ? `**${ctx.activeReel.title}**` : 'all four reels';
   lines.push(`Here is what the archive itself says (grounded on ${cits.length} passage${cits.length === 1 ? '' : 's'} in ${scopeName}):`);
   lines.push('');
   cits.slice(0, 3).forEach((c) => {

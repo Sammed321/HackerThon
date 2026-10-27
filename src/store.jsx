@@ -257,8 +257,8 @@ function wireMediaElement(engine, el) {
  * ------------------------------------------------------------------ */
 function bootReels() {
   return REELS.map((reel) => {
-    const { perSegment, flat } = annotateReel(reel);
-    return { ...reel, annotations: flat, perSegment };
+    const { perSegment, flat, discoveredNodes } = annotateReel(reel);
+    return { ...reel, annotations: flat, perSegment, discoveredNodes: discoveredNodes || [] };
   });
 }
 
@@ -270,6 +270,7 @@ export function AppProvider({ children }) {
   const [reels, setReels] = useState(bootReels);
   const [activeId, setActiveId] = useState(REELS[0].id);
   const [tab, setTab] = useState('studio');
+  const [standardsExporter, setStandardsExporter] = useState('iiif');
 
   const annotationMap = useMemo(() => {
     const m = new Map();
@@ -385,6 +386,7 @@ export function AppProvider({ children }) {
   const toggle = useCallback(() => (engine.playing ? pause() : play()), [pause, play, engine]);
 
   const seek = useCallback((t) => {
+    if (typeof t !== 'number' || !Number.isFinite(t)) return;
     const dur = activeReel.duration || 0;
     const nt = clamp(t, 0, dur);
     engine.time = nt;
@@ -460,8 +462,12 @@ export function AppProvider({ children }) {
 
   // reset the clock on reel switch
   useEffect(() => {
-    engine.time = 0;
-    engine.virtualStartedAt = performance.now();
+    const targetT = typeof engine.pendingSeek === 'number' && Number.isFinite(engine.pendingSeek)
+      ? clamp(engine.pendingSeek, 0, activeReel.duration || 0)
+      : 0;
+    engine.pendingSeek = null;
+    engine.time = targetT;
+    engine.virtualStartedAt = performance.now() - targetT * 1000;
     engine.playing = false;
     engine.lastSegId = null;
     setPlaying(false);
@@ -473,7 +479,7 @@ export function AppProvider({ children }) {
       engine.audioReelId = null;
     }
     engine.analyser = null;
-    publish(0, false);
+    publish(targetT, false);
   }, [activeReel, engine]);
 
   // silence every source when the app unmounts
@@ -487,13 +493,16 @@ export function AppProvider({ children }) {
   const [highlight, setHighlight] = useState(null);
   const highlightSegment = useCallback((reelId, t, segId) => {
     const switching = reelId && reelId !== activeId;
+    if (typeof t === 'number' && Number.isFinite(t)) {
+      if (switching) engine.pendingSeek = t;
+    }
     if (reelId && reelId !== activeId) setActiveId(reelId);
     setTab('studio');
     setHighlight({ reelId, segId, t, key: Date.now() });
-    if (typeof t === 'number' && !Number.isNaN(t)) {
-      setTimeout(() => seek(t), switching ? 80 : 0);
+    if (!switching && typeof t === 'number' && Number.isFinite(t)) {
+      seek(t);
     }
-  }, [activeId, seek]);
+  }, [activeId, seek, engine]);
 
   /* ---------------- modals & overlays ---------------- */
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -597,7 +606,7 @@ export function AppProvider({ children }) {
     return reel;
   }, [addReel]);
 
-  const ingestMedia = useCallback((file) => new Promise((resolve, reject) => {
+  const ingestMedia = useCallback((file, meta = {}) => new Promise((resolve, reject) => {
     try {
       const url = URL.createObjectURL(file);
       const isVideo = file.type.startsWith('video');
@@ -605,15 +614,17 @@ export function AppProvider({ children }) {
       el.preload = 'metadata';
       el.src = url;
       el.addEventListener('loadedmetadata', () => {
+        const yearFromFilename = (file.name.match(/(19|20)\d{2}/) || [''])[0];
+        const detectedYear = meta.year || (yearFromFilename ? Number(yearFromFilename) : undefined);
         const reel = {
           id: `custom-${uid('r').slice(-8)}`,
-          title: file.name.replace(/\.[^.]+$/, ''),
-          year: new Date(file.lastModified).getFullYear() || '—',
+          title: meta.title || file.name.replace(/\.[^.]+$/, ''),
+          year: detectedYear || '—',
           month: '',
           kind: isVideo ? 'film' : 'audio',
           duration: Math.round(el.duration) || 120,
           source: `Local file upload (${file.name})`,
-          place: 'Unspecified coverage',
+          place: meta.place || 'Unspecified coverage',
           languages: ['Auto-detected'],
           tapeLabel: `LOCAL-${Date.now().toString(36).toUpperCase().slice(-5)}`,
           ingestNote: 'Ingested in the browser; decoded by the built-in offline heuristics engine.',
@@ -688,15 +699,20 @@ export function AppProvider({ children }) {
           transcriptSource: segs.length ? 'Whisper tiny.en (on-device, WebAssembly)' : undefined,
         };
         if (segs.length) {
-          const { perSegment, flat } = annotateReel(updated);
+          const { perSegment, flat, discoveredNodes } = annotateReel(updated);
           annCount = flat.length;
-          updated = { ...updated, annotations: flat, perSegment };
+          updated = {
+            ...updated,
+            annotations: flat,
+            perSegment,
+            discoveredNodes: discoveredNodes || [],
+          };
         }
         return updated;
       }));
 
       if (segs.length) {
-        pushToast(`On-device transcription complete — ${segs.length} segment${segs.length === 1 ? '' : 's'}, ${annCount} cultural annotation${annCount === 1 ? '' : 's'} decoded instantly.`, 'emerald');
+        pushToast(`On-device transcription complete — ${segs.length} segment${segs.length === 1 ? '' : 's'}, ${annCount} cultural annotation${annCount === 1 ? '' : 's'} decoded with Context Cards!`, 'emerald');
       } else {
         pushToast('Transcription finished — no clear speech was detected in this clip (tiny.en handles English best).', 'gold');
       }
@@ -708,11 +724,28 @@ export function AppProvider({ children }) {
     }
   }, [reels, pushToast]);
 
+  const decodeReelContext = useCallback((reelId) => {
+    let count = 0;
+    setReels((prev) => prev.map((r) => {
+      if (r.id !== reelId) return r;
+      const { perSegment, flat, discoveredNodes } = annotateReel(r);
+      count = flat.length;
+      return {
+        ...r,
+        annotations: flat,
+        perSegment,
+        discoveredNodes: discoveredNodes || [],
+      };
+    }));
+    pushToast(`Cultural context decoded — ${count} historical entities, people, and places identified with Context Cards!`, 'emerald');
+  }, [pushToast]);
+
   const values = {
     // archive
     reels, activeId, activeReel, setActiveId, tab, setTab, graph, annotationMap, corpus,
     // engine + telemetry
     settings, saveSettings, chatBusy, telemetry, exportsDone, markExport,
+    standardsExporter, setStandardsExporter,
     // playback
     playing, play, pause, toggle, seek, engine,
     grain, setGrain, restored, setRestored, narrate, toggleNarrate,
@@ -725,13 +758,13 @@ export function AppProvider({ children }) {
     messages, send, clearChat, scope, setScope,
     // ingestion + toasts
     addReel, ingestText, ingestMedia, toasts, pushToast,
-    // transcription
-    transcribing, transcribeReel,
+    // transcription & cultural decoding
+    transcribing, transcribeReel, decodeReelContext,
   };
 
   return <AppCtx.Provider value={values}>{children}</AppCtx.Provider>;
 }
 
 function DEFAULT_PROVIDER_SAFE() {
-  return { ...DEFAULT_SETTINGS };
+  return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
 }

@@ -115,7 +115,7 @@ function buildCommands(app, actions) {
   setSettingsOpen && add('settings', Settings, 'Configure AI engine (Ollama / OpenAI-compatible / Gemini)', 'Live API or deterministic local fallback', () => setSettingsOpen(true), 'llm ollama gemma model api key');
 
   toggle && add('play', Sparkles, 'Play / pause the archival player', 'Space', () => toggle(), 'playback pause resume');
-  add('grain', Waves, `_archival grain ${grain ? 'off' : 'on'}`, 'Vintage film-grain overlay', () => setGrain(!grain), 'film grain vintage sepia');
+  add('grain', Waves, `Archival grain ${grain ? 'off' : 'on'}`, 'Vintage film-grain overlay', () => setGrain(!grain), 'film grain vintage sepia');
   add('restore', RefreshCw, `Restoration mode ${restored ? 'off' : 'on'}`, 'Clean restored profile', () => setRestored(!restored), 'restore enhance clean');
 
   (reels || []).forEach((r) => {
@@ -128,7 +128,8 @@ function buildCommands(app, actions) {
 
   if (setTab && activeReel) {
     const exportsFor = (kind) => () => {
-      markExport(kind);
+      markExport?.(kind);
+      actions.setStandardsExporter?.(kind) || app.setStandardsExporter?.(kind);
       setTab('standards');
     };
     add('exp-iiif', Download, 'Generate IIIF 3.0 manifest (JSON-LD)', 'Presentation API · copy & download', exportsFor('iiif'), 'iiif json-ld manifest codc');

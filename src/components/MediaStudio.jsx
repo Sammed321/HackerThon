@@ -193,6 +193,13 @@ function Player({ openEntryAt }) {
           <button onClick={() => setRestored(!restored)} className={`btn text-[11px] !px-2.5 !py-1.5 ${restored ? 'bg-aqua/10 text-aqua border-aqua/40' : 'bg-white/5 text-slate-400 border-white/10'}`} title="Toggle archival restoration profile">
             <Sparkles size={12} /> Restore
           </button>
+          <button
+            onClick={() => app.decodeReelContext?.(reel.id)}
+            className="btn text-[11px] !px-2.5 !py-1.5 bg-gold/15 text-gold border-gold/40 hover:bg-gold/25"
+            title="Scan for places, figures, institutions and update Cultural Context Cards"
+          >
+            <Sparkles size={12} className="text-gold" /> Decode
+          </button>
         </div>
       </div>
 
@@ -202,7 +209,10 @@ function Player({ openEntryAt }) {
           className="relative h-7 cursor-crosshair group"
           onPointerDown={(e) => {
             const r = e.currentTarget.getBoundingClientRect();
-            seek(((e.clientX - r.left) / r.width) * reel.duration);
+            if (r.width > 0 && (reel.duration || 0) > 0) {
+              const target = ((e.clientX - r.left) / r.width) * reel.duration;
+              if (Number.isFinite(target)) seek(target);
+            }
           }}
         >
           <div className="absolute top-3 left-0 right-0 h-1 rounded-full bg-edge/80 overflow-hidden">
@@ -267,22 +277,34 @@ function ContextRail() {
 
       <div className="card p-4">
         <div className="h-label mb-2.5">Dominant decoded entities</div>
-        <div className="flex flex-wrap gap-1.5">
-          {topEntities.map((e) => {
-            const c = nodeTypeColor(e.type);
-            return (
-              <button
-                key={e.refId}
-                onClick={() => openContext(e.refKind === 'entry' ? (ENTRIES_BY_ID[e.refId] || { refId: e.refId }) : { refId: e.refId })}
-                className="chip !px-2 hover:scale-105 transition"
-                style={{ color: c.ring, background: `${c.ring}14`, borderColor: `${c.ring}55` }}
-                title={`${e.type} · ${e.count} mention(s)`}
-              >
-                {e.label} <span className="opacity-60">×{e.count}</span>
-              </button>
-            );
-          })}
-        </div>
+        {topEntities.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {topEntities.map((e) => {
+              const c = nodeTypeColor(e.type);
+              return (
+                <button
+                  key={e.refId}
+                  onClick={() => openContext(e.refKind === 'entry' ? (ENTRIES_BY_ID[e.refId] || e.entry || { refId: e.refId }) : (e.entry || { refId: e.refId }))}
+                  className="chip !px-2 hover:scale-105 transition"
+                  style={{ color: c.ring, background: `${c.ring}14`, borderColor: `${c.ring}55` }}
+                  title={`${e.type} · ${e.count} mention(s)`}
+                >
+                  {e.label} <span className="opacity-60">×{e.count}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-2">
+            <p className="text-[11px] text-slate-500 mb-2">No entities decoded yet for this reel.</p>
+            <button
+              onClick={() => app.decodeReelContext?.(reel.id)}
+              className="btn-gold !text-xs !py-1 !px-2.5 mx-auto"
+            >
+              <Sparkles size={11} /> ✨ Decode Entities
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="card p-4">

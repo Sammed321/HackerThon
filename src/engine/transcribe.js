@@ -30,7 +30,10 @@ export async function loadTranscriber(onFile) {
     env.allowLocalModels = true;
     env.allowRemoteModels = false;                    // never phone home
     env.localModelPath = '/models/';
-    if (env.backends?.onnx?.wasm) env.backends.onnx.wasm.wasmPaths = '/ort/';
+    if (env.backends?.onnx) {
+      env.backends.onnx.wasm = env.backends.onnx.wasm || {};
+      env.backends.onnx.wasm.wasmPaths = '/ort/';
+    }
     return pipeline('automatic-speech-recognition', MODEL_ID, {
       quantized: true,
       progress_callback: (p) => {

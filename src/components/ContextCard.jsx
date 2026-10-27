@@ -22,53 +22,58 @@ export default function ContextCard() {
   const { contextEntry, closeContext, reels, setActiveId, graph, highlightSegment, setTab, setDrawerNode, pushToast } = app;
   if (!contextEntry) return null;
 
-  const isEntry = Boolean(contextEntry && contextEntry.aliases && contextEntry.literal);
-  const entry = isEntry ? contextEntry : graph?.byId?.get(contextEntry.refId);
-  const node = graph?.byId?.get(isEntry ? contextEntry.id : contextEntry.refId);
-  if (!entry) return null;
+  const rawNode = graph?.byId?.get(contextEntry?.id || contextEntry?.refId);
+  const resolved = (contextEntry && (contextEntry.literal || contextEntry.cultural))
+    ? contextEntry
+    : (rawNode?.dict || rawNode || contextEntry);
+  if (!resolved) return null;
 
+  const entry = {
+    ...resolved,
+    aliases: resolved.aliases || (resolved.label ? [resolved.label] : ['Archival Term']),
+    region: resolved.region || 'Historical Record',
+    era: resolved.era || 'Archival Era',
+    literal: resolved.literal || resolved.desc || `Reference to "${resolved.label || resolved.aliases?.[0] || 'archival term'}" in the historical record.`,
+    cultural: resolved.cultural || resolved.desc || `Culturally significant entity preserved in the archival soundscape.`,
+    evolution: resolved.evolution || `Documented in archival recordings from the ${resolved.era || 'historical'} period.`,
+    beginner: resolved.beginner || resolved.cultural || resolved.desc || `Key figure, place, or institution documented in this historic audio-visual recording.`,
+  };
+
+  const node = rawNode || entry;
   const meta = TYPE_META[entry.type] || TYPE_META.idiom;
 
-  // occurrences in each reel (same-dictionary annotations)
+  // occurrences in each reel (matches by id or alias/surface)
   const occ = [];
+  const targetId = entry.id || contextEntry.refId || contextEntry.id;
+  const targetAliases = (entry.aliases || []).map((a) => a.toLowerCase());
   reels.forEach((reel) => {
-    const hits = (reel.perSegment || {});
-    if (isEntry) {
-      Object.entries(hits).forEach(([segId, list]) => {
-        list.forEach((h) => {
-          if (h.id === entry.id) {
-            const seg = reel.segments.find((s) => s.id === segId);
-            occ.push({ reel, segId, t: seg ? seg.t : h.start, surface: h.surface });
-          }
-        });
+    const hits = reel.perSegment || {};
+    Object.entries(hits).forEach(([segId, list]) => {
+      (list || []).forEach((h) => {
+        const hitId = h.id || h.entry?.id || h.refId;
+        const hitSurface = (h.surface || '').toLowerCase();
+        if (hitId === targetId || (hitSurface && targetAliases.includes(hitSurface))) {
+          const seg = reel.segments.find((s) => s.id === segId);
+          occ.push({ reel, segId, t: seg ? seg.t : (h.start || 0), surface: h.surface || entry.aliases[0] });
+        }
       });
-    } else {
-      const id = node?.id;
-      Object.entries(hits).forEach(([segId, list]) => {
-        list.forEach((h) => {
-          if (h.id === id) {
-            const seg = reel.segments.find((s) => s.id === segId);
-            occ.push({ reel, segId, t: seg ? seg.t : 0, surface: h.surface || node?.label });
-          }
-        });
-      });
-    }
+    });
   });
   const occLimited = occ.slice(0, 8);
 
   // related reels from meta or edges
-  const relatedReels = isEntry
+  const relatedReels = (entry.reels && entry.reels.length)
     ? (entry.reels || []).map((id) => reels.find((r) => r.id === id)).filter(Boolean)
-    : graph.edges
-        .filter((e) => e.a === entry.id || e.b === entry.id)
-        .map((e) => (e.a === entry.id ? e.b : e.a))
+    : (graph?.edges || [])
+        .filter((e) => e.a === targetId || e.b === targetId)
+        .map((e) => (e.a === targetId ? e.b : e.a))
         .map((id) => reels.find((r) => r.id === id))
         .filter(Boolean);
 
   const uniqRelated = [...new Map(relatedReels.map((r) => [r.id, r])).values()];
 
   const askAbout = () => {
-    const title = isEntry ? entry.aliases[0] : entry.label;
+    const title = entry.aliases?.[0] || entry.label;
     closeContext();
     setTab('assistant');
     app.send(`Explain the cultural meaning of ${title} for a high school student`);
@@ -82,7 +87,18 @@ export default function ContextCard() {
   };
 
   const copyEntry = () => {
-    const payload = isEntry ? { ...entry } : { id: entry.id, label: entry.label, type: entry.type, desc: entry.desc };
+    const payload = {
+      id: entry.id,
+      label: entry.label || entry.aliases?.[0],
+      aliases: entry.aliases,
+      type: entry.type,
+      era: entry.era,
+      region: entry.region,
+      literal: entry.literal,
+      cultural: entry.cultural,
+      evolution: entry.evolution,
+      beginner: entry.beginner,
+    };
     try {
       navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
       pushToast('Annotation JSON copied — ready for a PR or dataset patch.', 'emerald');
@@ -105,7 +121,7 @@ export default function ContextCard() {
             </div>
             <div>
               <div className="font-display text-lg text-slate-100 leading-tight">
-                {isEntry ? entry.aliases[0] : entry.label}
+                {entry.aliases?.[0] || entry.label}
               </div>
               <div className="flex items-center gap-2 mt-1">
                 <span className={`chip ${meta.cls}`}><meta.icon size={10} /> {meta.name}</span>
@@ -117,35 +133,20 @@ export default function ContextCard() {
         </div>
 
         <div className="p-5 space-y-4">
-          {isEntry ? (
-            <>
-              <Block icon={BookOpen} label="Original term / dialect phrase" tint="text-gold">
-                <span className="text-[14px]">「{entry.aliases.join(' · ')}{entry.anchors ? ` (${entry.anchors})` : ''}」</span>
-                <div className="text-slate-500 text-[12px] mt-1">{entry.region} · heard at {occLimited.length} timestamped spot{occLimited.length === 1 ? '' : 's'}</div>
-              </Block>
-              <Block icon={Languages} label="Literal vs. cultural meaning" tint="text-aqua">
-                <p className="text-[13px] text-slate-300"><span className="h-label block mb-0.5">Literal</span>{entry.literal}</p>
-                <p className="text-[13px] text-slate-300 mt-2"><span className="h-label block mb-0.5">Cultural</span>{entry.cultural}</p>
-              </Block>
-              <Block icon={History} label="Historical / geographical evolution" tint="text-iris">
-                <p className="text-[13px] text-slate-300">{entry.evolution}</p>
-              </Block>
-              <Block icon={GraduationCap} label="Beginner-friendly decoding" tint="text-gold">
-                <p className="text-[13px] text-slate-300">{entry.beginner}</p>
-              </Block>
-            </>
-          ) : (
-            <>
-              <Block icon={entry.type === 'person' ? Users : History} label="Who / what is this?" tint="text-gold">
-                <p className="text-[13px] text-slate-300">{entry.desc}</p>
-              </Block>
-              {entry.aliases && (
-                <Block icon={Languages} label="Name variants" tint="text-aqua">
-                  <p className="text-[13px] text-slate-300">{entry.aliases.join(' · ')}</p>
-                </Block>
-              )}
-            </>
-          )}
+          <Block icon={BookOpen} label="Original term / dialect phrase" tint="text-gold">
+            <span className="text-[14px]">「{(entry.aliases || [entry.label]).join(' · ')}{entry.anchors ? ` (${entry.anchors})` : ''}」</span>
+            <div className="text-slate-500 text-[12px] mt-1">{entry.region} · heard at {occLimited.length} timestamped spot{occLimited.length === 1 ? '' : 's'}</div>
+          </Block>
+          <Block icon={Languages} label="Literal vs. cultural meaning" tint="text-aqua">
+            <p className="text-[13px] text-slate-300"><span className="h-label block mb-0.5">Literal</span>{entry.literal}</p>
+            <p className="text-[13px] text-slate-300 mt-2"><span className="h-label block mb-0.5">Cultural</span>{entry.cultural}</p>
+          </Block>
+          <Block icon={History} label="Historical / geographical evolution" tint="text-iris">
+            <p className="text-[13px] text-slate-300">{entry.evolution}</p>
+          </Block>
+          <Block icon={GraduationCap} label="Beginner-friendly decoding" tint="text-gold">
+            <p className="text-[13px] text-slate-300">{entry.beginner}</p>
+          </Block>
 
           {/* occurrences */}
           {occLimited.length > 0 && (

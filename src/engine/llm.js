@@ -66,7 +66,7 @@ export async function testConnection(settings) {
         : `Connected — but "${settings.ollama.model}" not listed (${models.slice(0, 3).join(', ') || 'none'}). Run: ollama pull ${settings.ollama.model}` };
     }
     if (settings.provider === 'openai') {
-      const base = settings.openai.base.replace(/\/+$/, '');
+      const base = settings.openai.base.replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
       const data = await fetchJson(`${base}/models`, {
         method: 'GET', headers: { Authorization: `Bearer ${settings.openai.key || ''}` },
       }, 10000);
@@ -75,9 +75,10 @@ export async function testConnection(settings) {
     }
     if (settings.provider === 'gemini') {
       const base = settings.gemini.base.replace(/\/+$/, '');
+      const modelName = (settings.gemini.model || 'gemini-2.0-flash').replace(/^models\//, '');
       const data = await fetchJson(`${base}/v1beta/models?key=${encodeURIComponent(settings.gemini.key || '')}`, { method: 'GET' }, 10000);
       const names = (data.models || []).map((m) => m.name?.replace('models/', ''));
-      return { ok: true, ms: Math.round(performance.now() - t0), detail: `Connected — ${names.length} model(s); "${settings.gemini.model}" ${names.includes(settings.gemini.model) ? 'available' : 'not in list (may still work)'}.` };
+      return { ok: true, ms: Math.round(performance.now() - t0), detail: `Connected — ${names.length} model(s); "${modelName}" ${names.includes(modelName) ? 'available' : 'not in list (may still work)'}.` };
     }
     return { ok: true, ms: 0, detail: 'Local Heuristics Engine — always ready, no connection needed.' };
   } catch (err) {
@@ -104,7 +105,7 @@ export async function callLLM(settings, { system, user }) {
     return data?.message?.content || '';
   }
   if (settings.provider === 'openai') {
-    const base = settings.openai.base.replace(/\/+$/, '');
+    const base = settings.openai.base.replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
     const data = await fetchJson(`${base}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.openai.key || ''}` },
@@ -121,7 +122,8 @@ export async function callLLM(settings, { system, user }) {
   }
   if (settings.provider === 'gemini') {
     const base = settings.gemini.base.replace(/\/+$/, '');
-    const data = await fetchJson(`${base}/v1beta/models/${encodeURIComponent(settings.gemini.model)}:generateContent?key=${encodeURIComponent(settings.gemini.key || '')}`, {
+    const modelName = (settings.gemini.model || 'gemini-2.0-flash').replace(/^models\//, '');
+    const data = await fetchJson(`${base}/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(settings.gemini.key || '')}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

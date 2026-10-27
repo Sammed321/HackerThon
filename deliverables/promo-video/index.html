@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en" data-composition-variables='[]'>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Plus Jakarta Sans";
+        src: url("assets/fonts/plus-jakarta-sans-500.ttf") format("truetype");
+        font-weight: 500;
+        font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Plus Jakarta Sans";
+        src: url("assets/fonts/plus-jakarta-sans-600.ttf") format("truetype");
+        font-weight: 600;
+        font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Plus Jakarta Sans";
+        src: url("assets/fonts/plus-jakarta-sans-700.ttf") format("truetype");
+        font-weight: 700;
+        font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Plus Jakarta Sans";
+        src: url("assets/fonts/plus-jakarta-sans-800.ttf") format("truetype");
+        font-weight: 800;
+        font-style: normal;
+        font-display: block;
+      }
+
+      :root {
+        --paper: #fbfbfc;
+        --ink: #18181b;
+        --gold: #d97706;
+        --amber: #f59e0b;
+        --mint: #059669;
+        --aqua: #0891b2;
+        --edge: #e7e7ea;
+        --mono: "JetBrains Mono", Consolas, monospace;
+        --display: "Plus Jakarta Sans", Inter, sans-serif;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0a0a0b; }
+      #root { position: relative; width: 1920px; height: 1080px; font-family: "Inter", sans-serif; }
+      .clip { position: absolute; inset: 0; }
+
+      .plate { position: absolute; inset: 0; overflow: hidden; }
+      .plate img { display: block; width: 3840px; height: 2160px; position: absolute; max-width: none; }
+      .full img { left: 0; top: 0; width: 1920px; height: 1080px; object-fit: cover; }
+      .cam { position: absolute; inset: 0; will-change: transform; }
+
+      .kicker {
+        font-family: var(--mono);
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: #71717a;
+      }
+      .h {
+        font-family: var(--display);
+        font-weight: 800;
+        letter-spacing: -0.025em;
+        line-height: 1.04;
+        color: var(--ink);
+      }
+      .paper-card {
+        position: absolute;
+        background: rgba(251, 251, 252, 0.97);
+        border: 1px solid var(--edge);
+        border-radius: 18px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 10px 30px rgba(0, 0, 0, 0.09);
+      }
+      .chip-line {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--mono);
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: #a16207;
+        background: rgba(245, 158, 11, 0.1);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        border-radius: 999px;
+        padding: 8px 16px;
+      }
+      .gold { color: var(--gold); }
+      .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--amber); }
+
+      /* ---- S1 hook ---- */
+      #s1 .paper-card { left: 96px; top: 118px; padding: 34px 40px 38px; max-width: 760px; }
+      #s1 .h { font-size: 56px; margin-top: 14px; }
+      #s1 .sub { margin-top: 16px; font-size: 21px; line-height: 1.5; color: #52525b; }
+
+      /* ---- S2 tension ---- */
+      #s2 { background: #0a0a0b; }
+      #s2 .strip { position: absolute; left: 0; right: 0; top: 0; height: 520px; overflow: hidden; border-bottom: 1px solid #26262a; }
+      #s2 .strip .plate { position: absolute; inset: 0; }
+      #s2 .strip img { position: absolute; left: 0; top: -156px; width: 1920px; height: 1080px; }
+      #s2 .strip::after {
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(to bottom, rgba(10,10,11,0) 62%, rgba(10,10,11,0.96) 100%);
+      }
+      #s2 .lower { position: absolute; left: 96px; right: 96px; bottom: 96px; }
+      #s2 .h { color: #fafafa; font-size: 58px; margin-top: 18px; }
+      #s2 .h .gold { color: var(--amber); }
+      #s2 .quote {
+        margin-top: 22px; font-family: var(--mono); font-size: 17px; line-height: 1.6;
+        color: #a1a1aa; letter-spacing: 0.02em;
+      }
+      #s2 .kicker { color: #52525b; }
+
+      /* ---- S3 reveal ---- */
+      #s3 { background: var(--paper); }
+      #s3 .grid-bg { position: absolute; inset: 0; background-image: radial-gradient(#e4e4e7 1px, transparent 1px); background-size: 26px 26px; }
+      #s3 .center { position: absolute; left: 0; right: 0; top: 300px; text-align: center; }
+      #s3 .mark {
+        width: 108px; height: 108px; margin: 0 auto 34px; border-radius: 28px;
+        background: linear-gradient(135deg, #fbbf24, #f59e0b 55%, #d97706);
+        border: 1px solid rgba(245, 158, 11, 0.7);
+        box-shadow: 0 6px 24px rgba(245, 158, 11, 0.35);
+        display: flex; align-items: center; justify-content: center; position: relative;
+      }
+      #s3 .mark svg { width: 52px; height: 52px; color: #451a03; }
+      #s3 .mint-dot {
+        position: absolute; right: -5px; top: -5px; width: 26px; height: 26px;
+        border-radius: 50%; background: #059669; border: 5px solid var(--paper);
+      }
+      #s3 .wordmark { font-family: var(--display); font-weight: 800; font-size: 108px; letter-spacing: -0.04em; color: var(--ink); }
+      #s3 .wordmark .gold { color: var(--gold); }
+      #s3 .tag { margin-top: 20px; font-family: var(--display); font-weight: 600; font-size: 27px; color: #52525b; letter-spacing: -0.01em; }
+      #s3 .subrow { margin-top: 28px; font-family: var(--mono); font-size: 15px; letter-spacing: 0.18em; text-transform: uppercase; color: #a1a1aa; }
+
+      /* ---- proof ---- */
+      .proof .plate img { left: 0; top: 0; width: 1920px; height: 1080px; object-fit: cover; }
+      .proof .glass {
+        position: absolute; left: 88px; bottom: 84px;
+        background: rgba(250, 250, 251, 0.94);
+        border: 1px solid var(--edge); border-radius: 16px;
+        padding: 18px 24px 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.06), 0 14px 34px rgba(0,0,0,0.12);
+        max-width: 1080px;
+      }
+      .proof .glass .lab { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.18em; color: var(--gold); }
+      .proof .glass .txt { margin-top: 7px; font-family: var(--display); font-weight: 700; font-size: 25px; letter-spacing: -0.015em; color: var(--ink); line-height: 1.25; }
+      .proof .glass .txt span { color: #71717a; font-weight: 500; }
+
+      /* ---- payoff ---- */
+      #s5 { background: #0a0a0b; }
+      #s5 .left { position: absolute; left: 96px; top: 150px; width: 880px; }
+      #s5 .h { color: #fafafa; font-size: 74px; }
+      #s5 .h .gold { color: var(--amber); }
+      #s5 .kicker { color: #52525b; }
+      #s5 .sub { margin-top: 26px; font-size: 20px; line-height: 1.6; color: #a1a1aa; max-width: 760px; }
+      #s5 .manifest {
+        position: absolute; right: 88px; top: 96px; width: 760px; height: 888px;
+        background: var(--paper); border: 1px solid var(--edge); border-radius: 16px;
+        overflow: hidden; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+      }
+      #s5 .manifest .crop { position: absolute; inset: 0; }
+      #s5 .manifest img { position: absolute; left: -578px; top: -878px; width: 3840px; height: 2160px; }
+      #s5 .manifest .cap {
+        position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 22px;
+        font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em; color: #71717a;
+        background: linear-gradient(to top, rgba(251,251,252,1) 60%, rgba(251,251,252,0));
+      }
+
+      /* ---- end card ---- */
+      #s6 { background: var(--paper); }
+      #s6 .grid-bg { position: absolute; inset: 0; background-image: radial-gradient(#e4e4e7 1px, transparent 1px); background-size: 26px 26px; }
+      #s6 .claim { position: absolute; left: 0; right: 0; top: 210px; text-align: center; }
+      #s6 .claim .h { font-size: 66px; }
+      #s6 .claim .h .gold { color: var(--gold); }
+      #s6 .claim .sub { margin-top: 18px; font-size: 22px; color: #52525b; line-height: 1.55; max-width: 1100px; margin-left: auto; margin-right: auto; }
+      #s6 .mark {
+        width: 92px; height: 92px; margin: 0 auto 26px; border-radius: 24px;
+        background: linear-gradient(135deg, #fbbf24, #f59e0b 55%, #d97706);
+        border: 1px solid rgba(245, 158, 11, 0.7);
+        box-shadow: 0 6px 24px rgba(245, 158, 11, 0.32);
+        display: flex; align-items: center; justify-content: center; position: relative;
+      }
+      #s6 .mark svg { width: 44px; height: 44px; color: #451a03; }
+      #s6 .mint-dot { position: absolute; right: -4px; top: -4px; width: 22px; height: 22px; border-radius: 50%; background: #059669; border: 5px solid var(--paper); }
+      #s6 .cta {
+        margin: 44px auto 0; display: inline-flex; align-items: center; gap: 12px;
+        font-family: var(--mono); font-size: 19px; font-weight: 700; color: #fafafa;
+        background: #18181b; border-radius: 999px; padding: 16px 34px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+      }
+      #s6 .cta .g { color: #fbbf24; }
+      #s6 .facts { margin-top: 26px; font-family: var(--mono); font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: #a1a1aa; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="48.5" data-width="1920" data-height="1080" data-motion-blur="on">
+
+      <!-- S1 · hook 0 – 6.5 -->
+      <div id="s1" class="clip" data-start="0" data-duration="6.5" data-track-index="1" data-track-kind="graphics">
+        <div class="cam" id="s1-cam">
+          <div class="plate full"><img src="assets/screens/studio-default.png" alt="SmritiGraph Media Studio" /></div>
+        </div>
+        <div class="paper-card" id="s1-card">
+          <span class="kicker">1924 · Belgaum Congress Session</span>
+          <div class="h">Every term on this tape<br />carries <span class="gold">a century.</span></div>
+          <div class="sub">Click one — the archive explains itself in place.</div>
+        </div>
+      </div>
+
+      <!-- S2 · tension 6.5 – 13 -->
+      <div id="s2" class="clip" data-start="6.5" data-duration="6.5" data-track-index="1" data-track-kind="graphics">
+        <div class="strip" id="s2-strip">
+          <div class="plate"><img src="assets/screens/studio-default.png" alt="Archival waveform" /></div>
+        </div>
+        <div class="lower" id="s2-lower">
+          <span class="kicker">The file exists. The context does not.</span>
+          <div class="h">“source: AIR Dharwad” —<br />and <span class="gold">nothing else.</span></div>
+          <div class="quote">a heritage file with no frame of reference leaves a researcher stuck.</div>
+        </div>
+      </div>
+
+      <!-- S3 · reveal 13 – 18.5 -->
+      <div id="s3" class="clip" data-start="13" data-duration="5.5" data-track-index="1" data-track-kind="graphics">
+        <div class="grid-bg"></div>
+        <div class="center">
+          <div class="mark" id="s3-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4.9 19.1C4.4 15.6 7 12 12 12s7.6 3.6 7.1 7.1" />
+              <circle cx="12" cy="6" r="2.2" fill="currentColor" stroke="none" />
+              <path d="M6.5 9.2a7.6 7.6 0 0 1 11 0" />
+            </svg>
+            <span class="mint-dot" id="s3-dot"></span>
+          </div>
+          <div class="wordmark" id="s3-word">Smriti<span class="gold">Graph</span></div>
+          <div class="tag" id="s3-tag">The Living Archive</div>
+          <div class="subrow" id="s3-sub">decode · connect · liberate</div>
+        </div>
+      </div>
+
+      <!-- S4a · decode 18.5 – 23.5 -->
+      <div id="s4a" class="clip proof" data-start="18.5" data-duration="5" data-track-index="1" data-track-kind="graphics">
+        <div class="cam" id="s4a-cam"><div class="plate"><img src="assets/screens/studio-context-card.png" alt="Cultural Context Card" /></div></div>
+        <div class="glass" id="s4a-glass">
+          <div class="lab">01 · DECODE</div>
+          <div class="txt">Every cultural term → a Context Card <span>· literal meaning, era, region, 100 years of evolution</span></div>
+        </div>
+      </div>
+
+      <!-- S4b · connect 23.5 – 28.5 -->
+      <div id="s4b" class="clip proof" data-start="23.5" data-duration="5" data-track-index="1" data-track-kind="graphics">
+        <div class="cam" id="s4b-cam"><div class="plate"><img src="assets/screens/graph.png" alt="Heritage Constellation" /></div></div>
+        <div class="glass" id="s4b-glass">
+          <div class="lab">02 · CONNECT</div>
+          <div class="txt">One reel → a living knowledge graph <span>· 48 nodes · 267 links · canvas physics, no libraries</span></div>
+        </div>
+      </div>
+
+      <!-- S4c · ask 28.5 – 33.5 -->
+      <div id="s4c" class="clip proof" data-start="28.5" data-duration="5" data-track-index="1" data-track-kind="graphics">
+        <div class="cam" id="s4c-cam"><div class="plate"><img src="assets/screens/assistant-answer.png" alt="Talk to the Archive" /></div></div>
+        <div class="glass" id="s4c-glass">
+          <div class="lab">03 · ASK</div>
+          <div class="txt">Grounded answers with receipts <span>· reel + timestamp + confidence, click to verify</span></div>
+        </div>
+      </div>
+
+      <!-- S4d · liberate 33.5 – 38 -->
+      <div id="s4d" class="clip proof" data-start="33.5" data-duration="4.5" data-track-index="1" data-track-kind="graphics">
+        <div class="cam" id="s4d-cam"><div class="plate"><img src="assets/screens/standards.png" alt="Open Standards Hub" /></div></div>
+        <div class="glass" id="s4d-glass">
+          <div class="lab">04 · LIBERATE</div>
+          <div class="txt">IIIF 3.0 · Dublin Core · CSV · one-click PR <span>· the formats GLAM pipelines ingest same-day</span></div>
+        </div>
+      </div>
+
+      <!-- S5 · payoff 38 – 43 -->
+      <div id="s5" class="clip" data-start="38" data-duration="5" data-track-index="1" data-track-kind="graphics">
+        <div class="left">
+          <span class="kicker" id="s5-kicker">IIIF Presentation 3.0 manifest</span>
+          <div class="h" id="s5-h">The museum<br /><span class="gold">outlives us.</span></div>
+          <div class="sub" id="s5-sub">A valid manifest with timed annotation bodies — the reel re-opens in Mirador, Universal Viewer, or any IIIF player that will exist in 2050.</div>
+        </div>
+        <div class="manifest" id="s5-manifest">
+          <div class="crop"><img src="assets/screens/standards.png" alt="IIIF manifest JSON-LD" /></div>
+          <div class="cap">application/ld+json · Presentation 3.0 · 6/6 validation checks</div>
+        </div>
+      </div>
+
+      <!-- S6 · claim + end card 43 – 48.5 -->
+      <div id="s6" class="clip" data-start="43" data-duration="5.5" data-track-index="1" data-track-kind="graphics">
+        <div class="grid-bg"></div>
+        <div class="claim">
+          <div class="mark" id="s6-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4.9 19.1C4.4 15.6 7 12 12 12s7.6 3.6 7.1 7.1" />
+              <circle cx="12" cy="6" r="2.2" fill="currentColor" stroke="none" />
+              <path d="M6.5 9.2a7.6 7.6 0 0 1 11 0" />
+            </svg>
+            <span class="mint-dot" id="s6-dot"></span>
+          </div>
+          <div class="h" id="s6-h">Heritage ends where <span class="gold">context begins.</span></div>
+          <div class="sub" id="s6-sub">Not just the file — the understanding of the file,<br />in open standards anyone can use, forever.</div>
+          <div id="s6-cta-wrap">
+            <span class="cta"><span class="g">github.com/smritigraph/smritigraph</span><span>→</span></span>
+          </div>
+          <div class="facts" id="s6-facts">MIT · zero API keys · works 100% offline · Hacktoberfest Hack Day 2026 · Track 2</div>
+        </div>
+      </div>
+
+      <!-- audio cues -->
+      <audio id="sfx-whoosh-1" src="assets/sfx/whoosh-cinematic.mp3" class="clip" data-start="6.45" data-duration="1.6" data-volume="0.32" data-track-index="9"></audio>
+      <audio id="sfx-riser" src="assets/sfx/riser.mp3" class="clip" data-start="11.6" data-duration="1.6" data-volume="0.25" data-track-index="9"></audio>
+      <audio id="sfx-whoosh-2" src="assets/sfx/whoosh-short.mp3" class="clip" data-start="18.45" data-duration="0.9" data-volume="0.3" data-track-index="9"></audio>
+      <audio id="sfx-pop-1" src="assets/sfx/pop.mp3" class="clip" data-start="23.45" data-duration="0.7" data-volume="0.3" data-track-index="9"></audio>
+      <audio id="sfx-pop-2" src="assets/sfx/pop.mp3" class="clip" data-start="28.45" data-duration="0.7" data-volume="0.28" data-track-index="9"></audio>
+      <audio id="sfx-pop-3" src="assets/sfx/pop.mp3" class="clip" data-start="33.45" data-duration="0.7" data-volume="0.26" data-track-index="9"></audio>
+      <audio id="sfx-impact" src="assets/sfx/impact-bass-2.mp3" class="clip" data-start="37.95" data-duration="2.2" data-volume="0.3" data-track-index="9"></audio>
+      <audio id="sfx-click" src="assets/sfx/click.mp3" class="clip" data-start="43.05" data-duration="0.6" data-volume="0.28" data-track-index="9"></audio>
+    </div>
+
+    <script>
+      gsap.registerEffect && null;
+      var tl = gsap.timeline({ paused: true });
+
+      /* S1 — slow push + card in */
+      tl.fromTo("#s1-cam", { scale: 1.015 }, { scale: 1.065, duration: 6.5, ease: "none" }, 0);
+      tl.fromTo("#s1-card", { opacity: 0, y: 26, filter: "blur(8px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.42, ease: "expo.out" }, 0.35);
+
+      /* S2 — strip settles, lines in */
+      tl.fromTo("#s2-strip", { y: -40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 0);
+      tl.fromTo("#s2-lower .kicker", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.24, ease: "power4.out" }, 0.25);
+      tl.fromTo("#s2-lower .h", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.34, ease: "expo.out" }, 0.55);
+      tl.fromTo("#s2-lower .quote", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 1.15);
+
+      /* S3 — reveal */
+      tl.fromTo("#s3 .grid-bg", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 0);
+      tl.fromTo("#s3-mark", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(1.4)" }, 0.1);
+      tl.fromTo("#s3-dot", { scale: 0 }, { scale: 1, duration: 0.3, ease: "back.out(2.4)" }, 0.5);
+      tl.fromTo("#s3-word", { opacity: 0, y: 22, filter: "blur(8px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.4, ease: "expo.out" }, 0.45);
+      tl.fromTo("#s3-tag", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.34, ease: "power3.out" }, 0.75);
+      tl.fromTo("#s3-sub", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 1.0);
+      tl.fromTo("#s3 .center", { y: 0 }, { y: -14, duration: 2.2, ease: "power2.inOut" }, 2.4);
+
+      /* S4 — proof pushes + glass cards */
+      function proofBeat(id, at, dur, from, to) {
+        tl.fromTo("#" + id + "-cam", { scale: from }, { scale: to, duration: dur, ease: "none" }, at);
+        tl.fromTo("#" + id + "-glass", { opacity: 0, y: 24, filter: "blur(6px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.32, ease: "expo.out" }, at + 0.12);
+      }
+      proofBeat("s4a", 18.5, 5.0, 1.28, 1.38);
+      proofBeat("s4b", 23.5, 5.0, 1.32, 1.4);
+      proofBeat("s4c", 28.5, 5.0, 1.7, 1.82);
+      proofBeat("s4d", 33.5, 4.5, 1.3, 1.4);
+
+      /* S5 — payoff */
+      tl.fromTo("#s5-kicker", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 0.1);
+      tl.fromTo("#s5-h", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" }, 0.3);
+      tl.fromTo("#s5-sub", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.36, ease: "power3.out" }, 0.75);
+      tl.fromTo("#s5-manifest", { opacity: 0, x: 60, scale: 0.97 }, { opacity: 1, x: 0, scale: 1, duration: 0.55, ease: "expo.out" }, 0.2);
+      tl.fromTo("#s5 .manifest .crop", { y: 0 }, { y: -26, duration: 4.2, ease: "none" }, 1.1);
+
+      /* S6 — claim + end card */
+      tl.fromTo("#s6 .grid-bg", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 0);
+      tl.fromTo("#s6-mark", { scale: 0.65, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.46, ease: "back.out(1.5)" }, 0.1);
+      tl.fromTo("#s6-dot", { scale: 0 }, { scale: 1, duration: 0.3, ease: "back.out(2.4)" }, 0.44);
+      tl.fromTo("#s6-h", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.38, ease: "expo.out" }, 0.4);
+      tl.fromTo("#s6-sub", { opacity: 0 }, { opacity: 1, duration: 0.32, ease: "power2.out" }, 0.72);
+      tl.fromTo("#s6-cta-wrap", { opacity: 0, y: 16, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.36, ease: "back.out(1.6)" }, 1.05);
+      tl.fromTo("#s6-facts", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 1.35);
+
+      tl.seek(0);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

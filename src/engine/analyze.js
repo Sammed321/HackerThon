@@ -41,16 +41,18 @@ function getRegex(norm) {
   return re;
 }
 
-function matchAliasInText(text) {
+function matchAliasInText(text, extraIndex = []) {
   const found = [];
   const taken = new Array(text.length).fill(false);
-  for (const item of ALIAS_INDEX) {
+  const combined = extraIndex.length ? [...extraIndex, ...ALIAS_INDEX] : ALIAS_INDEX;
+  for (const item of combined) {
     const re = getRegex(item.norm);
     re.lastIndex = 0;
     let m;
     while ((m = re.exec(text)) !== null) {
       const at = m.index + (m[1] ? m[1].length : 0);
-      const end = at + item.alias.length;
+      const matchLen = m[2] ? m[2].length : item.alias.length;
+      const end = at + matchLen;
       let overlap = false;
       for (let i = at; i < end; i++) if (taken[i]) { overlap = true; break; }
       if (!overlap) {
@@ -65,43 +67,176 @@ function matchAliasInText(text) {
 }
 
 /* ------------------------------------------------------------------ *
- * Reel → annotations                                                  *
+ * Autonomous Entity Extraction & Cultural Decoding Engine             *
  * ------------------------------------------------------------------ */
-export function annotateReel(reel) {
-  const perSegment = {};
-  const flat = [];
-  reel.segments.forEach((seg) => {
-    const hits = matchAliasInText(seg.text);
-    perSegment[seg.id] = hits;
-    hits.forEach((h) => flat.push({ segId: seg.id, t: seg.t, surface: h.surface, ...pickRef(h) }));
-  });
-  return { perSegment, flat };
-}
+const STOP = new Set('the a an and or but of to in on at for with from by is are was were be been being it its this that these those we you they he she his her their our your my not no if then so as than there here what which who whom whose when where why how all any both each few more most other some such only own same too very can will just don should now said says say into out up down over under again once about above below between during before after because until while against off further per via etc also'.split(' '));
 
-export { matchAliasInText as findRefsInText };
+const COMMON_SENTENCE_STARTERS = new Set([
+  'the', 'and', 'then', 'now', 'so', 'there', 'here', 'what', 'when', 'where', 'why', 'how',
+  'today', 'yesterday', 'tomorrow', 'ask', 'also', 'because', 'every', 'each', 'all', 'some',
+  'one', 'two', 'three', 'after', 'before', 'during', 'first', 'last', 'next', 'another',
+  'these', 'those', 'this', 'that', 'they', 'their', 'them', 'with', 'from', 'into', 'about',
+  'over', 'under', 'above', 'below', 'between', 'again', 'once', 'just', 'such', 'only',
+  'even', 'more', 'most', 'very', 'well', 'yes', 'no', 'not', 'please', 'thank', 'thanks',
+  'hello', 'whisper', 'audio', 'video', 'sound', 'meanwhile', 'furthermore', 'however',
+  'therefore', 'moreover', 'nonetheless', 'suddenly', 'later', 'soon', 'finally', 'certainly',
+]);
+
+function guessType(token, localContext = '') {
+  const t = token.toLowerCase();
+  const c = localContext.toLowerCase();
+  if (/\b(president|prime minister|governor|viceroy|emperor|king|queen|prince|princess|lord|lady|sir|dr|general|colonel|major|captain|minister|secretary|ambassador)\b/.test(t)) {
+    return 'person';
+  }
+  if (/(court|assembly|police|army|navy|air force|corps|legion|cordon|parliament|council|ministry|committee|commission|party|league|congress|government|department|radio|press|broadcasting|board|agency|bureau)$/.test(t)) {
+    return 'institution';
+  }
+  if (/(movement|year|century|decade|era|revolution|war|act|amendment|session|launch|project|mission|day|jubilee|festival|festivities|rejoicing|celebration|anniversary|treaty|pact|march|procession|rally|speech|address|independence|republic|coronation|partition)$/.test(t)) {
+    return 'event';
+  }
+  if (/(pur|halli|palli|pete|pet|uru|kote|gudda|betta|wadi|vadi|kere|nagar|fort|gate|park|hall|palace|house|street|road|avenue|hill|river|lake|sea|ocean|mount|port|delhi|bombay|bengal|punjab|london|mysore|madras|india|pakistan|britain|america|europe|asia|africa|lunar|moon|mars)$/.test(t) ||
+      /\b(sea|ocean|lake|river|mount|mountain|island|cape|gulf|bay|harbor|port)\b/.test(t)) {
+    return 'place';
+  }
+  if (/(rao|shetty|gowda|naik|patil|desai|pandit|sharma|devi|bai|amma|appa|kumar|singh|khan|reddy|murthy|hegde|prasad|sen|roy|bose|das|mukherjee|chatterjee|banerjee|menon|nair|iyer|iyengar|pamela|emily|nehru|patel|gandhi|mountbatten|hicks|churchill|attlee|nixon|armstrong|kennedy|roosevelt|lincoln|washington)$/.test(t)) {
+    return 'person';
+  }
+  if (/\b(at|in|near|across|from|to|into)\s+$/.test(c)) return 'place';
+  if (/\b(mr|mrs|miss|lord|lady|dr|sir|general|colonel|major|captain|pandit|sardar|swami|mahatma|president)\s*$/.test(c)) return 'person';
+  if (/^\s*(said|spoke|stepped|signed|attended|declared|announced|stated|wrote)\b/.test(c)) return 'person';
+  return 'culture';
+}
 
 function pickRef(hit) {
   if (hit.kind === 'entry') {
     const e = hit.entry;
-    return { refKind: 'entry', refId: e.id, label: e.aliases[0], type: e.type };
+    return { refKind: 'entry', refId: e.id, label: e.aliases?.[0] || e.label || hit.surface, type: e.type, entry: e };
   }
   const n = hit.node;
-  return { refKind: 'entity', refId: n.id, label: n.label, type: n.type };
+  return { refKind: 'entity', refId: n.id, label: n.label || hit.surface, type: n.type, node: n };
+}
+
+/**
+ * Universal Annotation & Cultural Discovery Pass.
+ * Works on ANY reel transcript (curated, Whisper-transcribed, or text-ingested).
+ * Auto-discovers named entities and synthesizes rich 4-block Cultural Context Cards.
+ */
+export function annotateReelWithDiscovery(reel) {
+  const segments = reel.segments || [];
+  const perSegment = {};
+  const flat = [];
+  const discoveredMap = new Map();
+
+  (reel.discoveredNodes || []).forEach((n) => {
+    if (n && n.id) discoveredMap.set(n.id, n);
+  });
+
+  const extraIndex = [];
+  for (const n of discoveredMap.values()) {
+    (n.aliases || [n.label]).forEach((alias) => {
+      extraIndex.push({ alias, norm: alias.toLowerCase(), kind: 'entry', id: n.id, entry: n });
+    });
+  }
+  extraIndex.sort((a, b) => b.alias.length - a.alias.length);
+
+  segments.forEach((seg) => {
+    const text = seg.text || '';
+    const hits = matchAliasInText(text, extraIndex);
+    const taken = new Array(text.length).fill(false);
+    hits.forEach((h) => {
+      for (let i = h.start; i < h.end; i++) taken[i] = true;
+    });
+
+    // Autonomous Named Entity Recognition over unhighlighted spans
+    const candRe = /\b([A-Z][a-zA-Z0-9'’]+(?:\s+(?:of|the|and|in|at|de|da)?\s*[A-Z][a-zA-Z0-9'’]+)*)\b/gu;
+    let m;
+    while ((m = candRe.exec(text)) !== null) {
+      const surface = m[1].trim();
+      const start = m.index;
+      const end = start + surface.length;
+      if (surface.length < 3) continue;
+
+      let overlaps = false;
+      for (let i = start; i < end; i++) {
+        if (taken[i]) { overlaps = true; break; }
+      }
+      if (overlaps) continue;
+
+      const norm = surface.toLowerCase();
+      if (STOP.has(norm)) continue;
+
+      const isStartOfSentence = (start === 0 || /[.!?…]\s+$/.test(text.slice(Math.max(0, start - 4), start)));
+      if (isStartOfSentence && !surface.includes(' ')) {
+        if (COMMON_SENTENCE_STARTERS.has(norm) || STOP.has(norm)) continue;
+      }
+
+      let entry = null;
+      const slug = `c-${norm.replace(/[^a-z0-9]+/g, '-')}`.slice(0, 42);
+      if (discoveredMap.has(slug)) {
+        entry = discoveredMap.get(slug);
+      } else {
+        const localContext = text.slice(Math.max(0, start - 25), start);
+        const afterContext = text.slice(end, Math.min(text.length, end + 25));
+        const type = guessType(surface, `${localContext} ${afterContext}`);
+        const era = reel.year && reel.year !== '—' ? `${reel.year} era` : 'Archival record';
+        const region = reel.place && reel.place !== 'Unspecified coverage' ? reel.place : 'Archival soundscape';
+        entry = {
+          id: slug,
+          label: surface,
+          aliases: [surface],
+          type,
+          era,
+          region,
+          literal: `Archival record: "${surface}" identified in the historical transcript.`,
+          cultural: `Key entity preserved in the archival recording of "${reel.title}". Contextually documents the people, places, and events recorded in this historical reel.`,
+          evolution: `Traced through archival documentation and historical records from the ${reel.year || 'historical'} period to modern public collections.`,
+          beginner: `Key ${type} documented in this historic audio-visual recording. Listen for how the speaker refers to ${surface} at this timestamp.`,
+          desc: `Extracted from the reel "${reel.title}" and classified as ${type} by local heuristics. Community review welcome!`,
+          custom: true,
+        };
+        discoveredMap.set(slug, entry);
+      }
+
+      for (let i = start; i < end; i++) taken[i] = true;
+      hits.push({
+        kind: 'entry',
+        id: entry.id,
+        entry,
+        alias: surface,
+        surface,
+        start,
+        end,
+      });
+    }
+
+    hits.sort((a, b) => a.start - b.start);
+    perSegment[seg.id] = hits;
+    hits.forEach((h) => {
+      flat.push({
+        segId: seg.id,
+        t: seg.t,
+        surface: h.surface,
+        ...pickRef(h),
+        entry: h.kind === 'entry' ? h.entry : undefined,
+      });
+    });
+  });
+
+  return {
+    perSegment,
+    flat,
+    discoveredNodes: Array.from(discoveredMap.values()),
+  };
 }
 
 /* ------------------------------------------------------------------ *
- * Custom ingestion: crude but honest NLP over arbitrary text          *
+ * Reel → annotations                                                  *
  * ------------------------------------------------------------------ */
-const STOP = new Set('the a an and or but of to in on at for with from by is are was were be been being it its this that these those we you they he she his her their our your my not no if then so as than there here what which who whom whose when where why how all any both each few more most other some such only own same too very can will just don should now said says say into out up down over under again once about above below between during before after because until while against off further per via etc also'.split(' '));
-
-function guessType(token) {
-  const t = token.toLowerCase();
-  if (/(pur|halli|palli|pete|pet|uru|kote|gudda|betta|wadi|vadi|kere|nagar)$/.test(t)) return 'place';
-  if (/(rao|shetty|gowda|naik|patil|desai|pandit|sharma|devi|bai|amma|appa|kumar|singh|khan|reddy|murthy|hegde|prasad)$/.test(t)) return 'person';
-  if (/^(19|20)\d{2}$/.test(t)) return 'event';
-  if (/(movement|year|century|decade|era|revolution|war|act|amendment|session|launch|project|mission)$/.test(t)) return 'event';
-  return 'culture';
+export function annotateReel(reel) {
+  return annotateReelWithDiscovery(reel);
 }
+
+export { matchAliasInText as findRefsInText };
 
 export function analyzeCustomText(rawText, metaFallback) {
   const text = String(rawText || '').replace(/\r/g, '').trim();
@@ -109,7 +244,6 @@ export function analyzeCustomText(rawText, metaFallback) {
     .split(/(?<=[.!?…])\s+|(?<=\n)\s*/)
     .map((s) => s.trim())
     .filter((s) => s.length > 1);
-  // pack sentences into segments (≈2 sentences each, ≥40 chars)
   const chunks = [];
   let buf = '';
   sentences.forEach((s) => {
@@ -151,38 +285,10 @@ export function analyzeCustomText(rawText, metaFallback) {
     custom: true,
   };
 
-  const { perSegment, flat } = annotateReel(reel);
+  const { perSegment, flat, discoveredNodes } = annotateReelWithDiscovery(reel);
   reel.annotations = flat;
   reel.perSegment = perSegment;
-
-  // proper nouns not in the gazetteer → new community-reviewable nodes
-  const mentioned = new Set(flat.map((f) => f.refId));
-  const invented = [];
-  const seenTok = new Map();
-  segments.forEach((seg) => {
-    const toks = seg.text.replace(/["'“”‘’(){}\[\],.;:!?—–]/g, ' ').split(/\s+/);
-    toks.forEach((tok, idx) => {
-      if (tok.length < 4 || !/^[A-Z][a-zA-Z]+$/.test(tok)) return;
-      if (STOP.has(tok.toLowerCase())) return;
-      if (idx === 0) return; // sentence-start capital is unreliable
-      const norm = tok.toLowerCase();
-      if (mentioned.has(norm) || ALIAS_INDEX.some((a) => a.norm === norm)) return;
-      seenTok.set(norm, (seenTok.get(norm) || 0) + 1);
-    });
-  });
-  for (const [norm, count] of seenTok) {
-    if (count < 2 && seenTok.size > 14) continue; // dense pages → keep recurring only
-    const surface = norm.charAt(0).toUpperCase() + norm.slice(1);
-    const type = guessType(norm);
-    invented.push({
-      id: `c-${norm.replace(/[^a-z0-9]/g, '')}`.slice(0, 42),
-      label: surface, type, era: 'custom',
-      aliases: [surface],
-      desc: `Extracted from the ingested reel "${reel.title}" (occurs ${count}×) and classified as ${type} by local heuristics. Community review welcome!`,
-      custom: true,
-    });
-  }
-  reel.discoveredNodes = invented;
+  reel.discoveredNodes = discoveredNodes;
   return reel;
 }
 
@@ -197,7 +303,7 @@ export function buildGraph(reels, annotationMap) {
   DICTIONARY.forEach((e) => addNode({
     id: e.id, label: e.aliases[0], type: e.type, era: e.era, desc: e.cultural, dict: e,
   }));
-  GAZETTEER.forEach((n) => addNode({ ...n }));
+  GAZETTEER.forEach((n) => addNode({ ...n, dict: n }));
 
   const edgeMap = new Map();
   const addEdge = (a, b, w0 = 1) => {
@@ -213,7 +319,7 @@ export function buildGraph(reels, annotationMap) {
     addNode({ id: reel.id, label: reel.title, type: 'reel', era: String(reel.year), desc: reel.description, reelRef: reel });
     const hits = (annotationMap.get(reel.id) || []).map((f) => f.refId);
     if (reel.discoveredNodes) reel.discoveredNodes.forEach((n) => {
-      addNode({ ...n });
+      addNode({ ...n, dict: n });
       hits.push(n.id);
     });
     hits.forEach((nid) => addEdge(reel.id, nid, 1));

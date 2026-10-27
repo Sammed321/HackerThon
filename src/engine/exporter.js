@@ -65,18 +65,22 @@ export function iiifManifest(reel) {
                 body: { id: `${base}/media/1`, type: mediaType, duration: reel.duration },
                 target: canvasId,
               },
-              ...(reel.segments || []).map((seg) => ({
-                id: `${pageId}/anno/${seg.id}`,
-                type: 'Annotation',
-                motivation: 'supplementing',
-                body: {
-                  type: 'TextualBody',
-                  value: `${seg.speaker}: ${seg.text}`,
-                  format: 'text/plain',
-                  language: reel.languages[0] || 'en',
-                },
-                target: `${canvasId}#t=${seg.t},${seg.t + 10}`,
-              })),
+              ...(reel.segments || []).map((seg, idx, arr) => {
+                const nextSeg = arr[idx + 1];
+                const endT = Math.min(reel.duration || seg.t + 10, nextSeg ? nextSeg.t : (seg.t + 10));
+                return {
+                  id: `${pageId}/anno/${seg.id}`,
+                  type: 'Annotation',
+                  motivation: 'supplementing',
+                  body: {
+                    type: 'TextualBody',
+                    value: `${seg.speaker}: ${seg.text}`,
+                    format: 'text/plain',
+                    language: reel.languages[0] || 'en',
+                  },
+                  target: `${canvasId}#t=${seg.t},${endT}`,
+                };
+              }),
             ],
           },
         ],
@@ -178,6 +182,10 @@ export function wikimediaMarkdown(reel) {
 /* ------------------------------------------------------------------ *
  * Annotation dataset CSV                                              *
  * ------------------------------------------------------------------ */
+function csvCell(v) {
+  return `"${String(v ?? '').replace(/"/g, '""')}"`;
+}
+
 export function annotationsCsv(ctx) {
   const head = 'reel_id,reel_year,timestamp,segment_id,term,annotation_type,literal_meaning,cultural_meaning,region,confidence_mode';
   const lines = [head];
@@ -186,10 +194,11 @@ export function annotationsCsv(ctx) {
       const entry = a.refKind === 'entry' ? ctx.dictionaryById[a.refId] : null;
       const literal = entry ? entry.literal : 'auto-extracted entity (see graph node)';
       const cultural = entry ? entry.cultural : '';
+      const region = entry ? entry.region : '—';
       lines.push([
-        reel.id, reel.year, fmtTs(a.t), a.segId, a.surface, a.type,
-        `"${literal.replace(/"/g, '""')}"`, `"${cultural.replace(/"/g, '""')}"`,
-        entry ? entry.region.replace(/"/g, '""') : '—', 'local-heuristics',
+        csvCell(reel.id), csvCell(reel.year), csvCell(fmtTs(a.t)), csvCell(a.segId),
+        csvCell(a.surface), csvCell(a.type), csvCell(literal), csvCell(cultural),
+        csvCell(region), csvCell('local-heuristics'),
       ].join(','));
     });
   });
@@ -200,8 +209,13 @@ export function annotationsCsv(ctx) {
  * Community annotation PR payload                                     *
  * ------------------------------------------------------------------ */
 export function buildAnnotationPR(form) {
+  let slug = (`${form.term || ''}`).toLowerCase().trim()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '');
+  if (!slug) slug = `term-${Date.now().toString(36)}`;
+
   const entry = {
-    id: (`${form.term || 'term'}`).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'term',
+    id: slug,
     aliases: [form.term].filter(Boolean),
     type: form.type || 'idiom',
     era: form.era || 'community submission',
@@ -212,7 +226,6 @@ export function buildAnnotationPR(form) {
     beginner: form.beginner || '',
     reels: form.reelId ? [form.reelId] : [],
   };
-  const slug = entry.id;
   const filePatch = [{
     op: 'add',
     path: '/entries/-',

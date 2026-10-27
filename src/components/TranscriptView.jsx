@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { ScrollText, MousePointerClick, Mic, Loader2 } from 'lucide-react';
+import { ScrollText, MousePointerClick, Mic, Loader2, Sparkles } from 'lucide-react';
 import { useApp, useT } from '../store.jsx';
 import { fmtTime } from '../utils/toolkit.js';
 import { transcribeSupported } from '../engine/transcribe.js';
@@ -18,7 +18,7 @@ const TYPE_HEX = {
 };
 
 export default function TranscriptView() {
-  const { activeReel, openContext, highlight, seek, transcribing, transcribeReel } = useApp();
+  const { activeReel, openContext, highlight, seek, transcribing, transcribeReel, decodeReelContext } = useApp();
   const time = useT(3);
   const scrollRef = useRef(null);
   const lastAuto = useRef(null);
@@ -107,7 +107,7 @@ export default function TranscriptView() {
   return (
     <div className="card overflow-hidden">
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-edge/70 flex-wrap">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <ScrollText size={14} className="text-gold" />
           <span className="font-display text-[15px] text-slate-100">Synchronized Cultural Transcript</span>
           <span className="chip bg-gold/10 border-gold/30 text-gold text-[10px] ml-1">
@@ -118,6 +118,13 @@ export default function TranscriptView() {
               <Mic size={10} /> on-device
             </span>
           )}
+          <button
+            onClick={() => decodeReelContext?.(activeReel.id)}
+            className="chip bg-gold/15 border-gold/40 text-gold hover:bg-gold/25 text-[10px] cursor-pointer transition flex items-center gap-1"
+            title="Scan for places, figures, institutions and update Cultural Context Cards"
+          >
+            <Sparkles size={10} /> {(activeReel.annotations || []).length} decoded entities
+          </button>
         </div>
         <div className="flex items-center gap-3 flex-wrap text-[10.5px] text-slate-500">
           <span className="inline-flex items-center gap-1.5"><MousePointerClick size={12} className="text-gold/70" /> Click a highlighted term for its Context Card</span>
@@ -199,19 +206,28 @@ function buildParts(text, hits, openContext) {
 }
 
 function typeOf(h) {
-  return (h.kind === 'entry' ? h.entry?.type : h.node?.type) || '';
+  return (h.kind === 'entry' ? (h.entry?.type || h.type) : (h.node?.type || h.type)) || h.type || '';
 }
 
 function Term({ text, h, color, onOpen }) {
-  const meta = h.kind === 'entry' ? h.entry : h.node;
+  const meta = (h.kind === 'entry' ? h.entry : h.node) || h.entry || h.node;
+  const trigger = (e) => {
+    e.stopPropagation();
+    onOpen?.(meta || { refId: h.id });
+  };
   return (
     <span
-      className="term-hit font-medium"
+      role="button"
+      tabIndex={0}
+      className="term-hit font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-gold rounded-xs"
       style={{ color, background: `${color}16`, borderBottom: `1.5px solid ${color}66` }}
       title={`${meta?.aliases?.[0] || meta?.label || text} — click to open the Cultural Context Card`}
-      onClick={(e) => {
-        e.stopPropagation();
-        onOpen?.(h.kind === 'entry' ? meta : { refId: h.id });
+      onClick={trigger}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          trigger(e);
+        }
       }}
     >
       {text}

@@ -20,12 +20,20 @@ GROUPS.forEach((g) => g.types.forEach((t) => { TYPE_TO_GROUP[t] = g.id; }));
 
 export default function Constellation() {
   const app = useApp();
-  const { graph, activeReel, reels } = app;
+  const { graph, activeReel, reels, drawerNode, setDrawerNode } = app;
   const [scope, setScope] = useState('archive');
   const [activeGroups, setActiveGroups] = useState(() => new Set(GROUPS.map((g) => g.id)));
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(null);
   const [, forceTick] = useState(0); // for drawer re-renders on selection changes
+
+  useEffect(() => {
+    if (drawerNode) {
+      setSelected(drawerNode);
+      sim.current.hover = drawerNode;
+      setDrawerNode?.(null);
+    }
+  }, [drawerNode, setDrawerNode]);
 
   const canvasRef = useRef(null);
   const wrapRef = useRef(null);
@@ -231,13 +239,14 @@ export default function Constellation() {
       ctx.textAlign = 'center';
       ctx.fillText('No nodes match the current filters — enable more types or switch scope.', w / 2, h / 2);
     }
-
-    requestAnimationFrame(draw);
   };
 
   useEffect(() => {
     let raf;
-    const loop = () => { draw(); };
+    const loop = () => {
+      draw();
+      raf = requestAnimationFrame(loop);
+    };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -333,8 +342,10 @@ export default function Constellation() {
     const s = sim.current;
     const f = e.deltaY < 0 ? 1.12 : 1 / 1.12;
     const z2 = Math.max(0.45, Math.min(3.2, s.zoom * f));
-    s.panX = mx - (mx - s.panX) * (z2 / s.zoom);
-    s.panY = my - (my - s.panY) * (z2 / s.zoom);
+    const cx = s.size.w / 2;
+    const cy = s.size.h / 2;
+    s.panX = (mx - cx) - (mx - cx - s.panX) * (z2 / s.zoom);
+    s.panY = (my - cy) - (my - cy - s.panY) * (z2 / s.zoom);
     s.zoom = z2;
   };
 

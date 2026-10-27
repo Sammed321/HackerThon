@@ -241,15 +241,18 @@ export default function WaveformCanvas({ reel, openEntryAt }) {
     const w = Math.max(1, size.current.w);
     const hit = markers.find((m) => Math.abs((m.t / (reel.duration || 1)) * w - x) < 9);
     if (hit) {
-      seek(hit.t);
+      if (Number.isFinite(hit.t)) seek(hit.t);
       if (openEntryAt) openEntryAt(hit.items[0], hit.t);
       return;
     }
     scrubbing.current = true;
-    seek(t);
+    if (Number.isFinite(t)) seek(t);
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* noop */ }
   };
-  const onUp = () => { scrubbing.current = false; };
+  const onUp = (e) => {
+    scrubbing.current = false;
+    try { e?.currentTarget?.releasePointerCapture?.(e.pointerId); } catch { /* noop */ }
+  };
 
   return (
     <div ref={wrapRef} className="absolute inset-0">
@@ -258,7 +261,7 @@ export default function WaveformCanvas({ reel, openEntryAt }) {
         className="w-full h-full block touch-none"
         onPointerDown={onDown}
         onPointerUp={onUp}
-        onPointerLeave={() => { hover.current = null; scrubbing.current = false; }}
+        onPointerLeave={() => { hover.current = null; }}
         onPointerMove={onMove}
         onPointerCancel={onUp}
       />
