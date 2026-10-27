@@ -1,0 +1,42 @@
+{
+  "name": "smritigraph",
+  "private": false,
+  "version": "1.0.0",
+  "description": "SmritiGraph — Open-Source Cultural Context Decoder, Interactive Knowledge Graph & Grounded RAG Engine for Endangered Audiovisual Heritage",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/smritigraph/smritigraph"
+  },
+  "keywords": [
+    "hacktoberfest",
+    "cultural-heritage",
+    "iiif",
+    "dublin-core",
+    "knowledge-graph",
+    "rag",
+    "kannada",
+    "audiovisual-heritage",
+    "ollama",
+    "open-source"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite"
+  },
+  "dependencies": {
+    "lucide-react": "^0.474.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "vite": "^5.4.11"
+  }
+}
