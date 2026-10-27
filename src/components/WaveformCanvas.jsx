@@ -42,8 +42,8 @@ export function makePeaks(reel, bars = 340) {
 }
 
 const MARKER_COLORS = {
-  person: '#F59E0B', place: '#22D3EE', tradition: '#A78BFA', idiom: '#A78BFA',
-  dialect: '#A78BFA', event: '#FB7185', institution: '#818CF8', tech: '#818CF8',
+  person: '#D97706', place: '#0891B2', tradition: '#7C3AED', idiom: '#7C3AED',
+  dialect: '#7C3AED', event: '#E11D48', institution: '#4F46E5', tech: '#4F46E5',
 };
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -130,7 +130,7 @@ export default function WaveformCanvas({ reel, openEntryAt }) {
         g.addColorStop(1, 'rgba(180,83,9,0.92)');
         ctx.fillStyle = g;
       } else {
-        ctx.fillStyle = 'rgba(100,116,139,0.4)';
+        ctx.fillStyle = 'rgba(100,116,139,0.55)';
       }
       ctx.fillRect(x, mid - barH / 2, Math.max(1, barW * 0.62), barH);
     }
@@ -139,7 +139,7 @@ export default function WaveformCanvas({ reel, openEntryAt }) {
     (st.markers || []).forEach((m) => {
       const x = (m.t / dur) * w;
       if (x > w - 4) return;
-      const color = MARKER_COLORS[m.items[0]?.type] || '#94A3B8';
+      const color = MARKER_COLORS[m.items[0]?.type] || '#64748B';
       ctx.fillStyle = color;
       ctx.beginPath();
       const y = h - 12;
@@ -150,7 +150,7 @@ export default function WaveformCanvas({ reel, openEntryAt }) {
       ctx.closePath();
       ctx.fill();
       if (hover.current && Math.abs(hover.current.x - x) < 9) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.strokeStyle = '#292524';
         ctx.lineWidth = 1;
         ctx.stroke();
       }
@@ -186,7 +186,7 @@ export default function WaveformCanvas({ reel, openEntryAt }) {
 
     // timecode
     ctx.font = '600 12px ui-monospace, SFMono-Regular, monospace';
-    ctx.fillStyle = 'rgba(148,163,184,0.8)';
+    ctx.fillStyle = 'rgba(71,85,105,0.8)';
     const tc = `${fmtTime(time)} / ${fmtTime(dur)}`;
     ctx.fillText(tc, w - ctx.measureText(tc).width - 12, h - 16);
   };

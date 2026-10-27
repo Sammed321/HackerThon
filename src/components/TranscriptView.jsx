@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { ScrollText, MousePointerClick } from 'lucide-react';
+import { ScrollText, MousePointerClick, Mic, Loader2 } from 'lucide-react';
 import { useApp, useT } from '../store.jsx';
 import { fmtTime } from '../utils/toolkit.js';
+import { transcribeSupported } from '../engine/transcribe.js';
 
 const LEGEND = [
   { c: '#F59E0B', label: 'People' },
@@ -12,12 +13,12 @@ const LEGEND = [
 ];
 
 const TYPE_HEX = {
-  person: '#F59E0B', place: '#22D3EE', idiom: '#A78BFA', dialect: '#A78BFA',
-  tradition: '#A78BFA', event: '#FB7185', institution: '#818CF8', tech: '#818CF8',
+  person: '#B45309', place: '#0E7490', idiom: '#6D28D9', dialect: '#6D28D9',
+  tradition: '#6D28D9', event: '#BE123C', institution: '#4338CA', tech: '#4338CA',
 };
 
 export default function TranscriptView() {
-  const { activeReel, openContext, highlight, seek } = useApp();
+  const { activeReel, openContext, highlight, seek, transcribing, transcribeReel } = useApp();
   const time = useT(3);
   const scrollRef = useRef(null);
   const lastAuto = useRef(null);
@@ -52,6 +53,8 @@ export default function TranscriptView() {
   const flashSegId = highlight?.reelId === activeReel.id ? highlight.segId : null;
 
   if (!segments.length) {
+    const canTranscribe = Boolean(activeReel.audioUrl) && transcribeSupported();
+    const running = transcribing && transcribing.reelId === activeReel.id;
     return (
       <div className="card p-6 text-center">
         <ScrollText size={22} className="text-slate-500 mx-auto mb-2" />
@@ -59,6 +62,44 @@ export default function TranscriptView() {
         <p className="text-xs text-slate-500 mt-1">
           Use <span className="text-gold">Ingest Reel → paste archival text</span> to create a decodable transcript (works fully offline).
         </p>
+        {running ? (
+          <div className="mt-4 max-w-sm mx-auto space-y-2 text-left">
+            <div className="flex items-center justify-between gap-3 text-[11px]">
+              <span className="inline-flex items-center gap-1.5 text-slate-400">
+                <Loader2 size={12} className="animate-spin text-gold" /> {transcribing.message}
+              </span>
+              <span className="font-mono text-gold">{Math.round((transcribing.progress || 0) * 100)}%</span>
+            </div>
+            <div className="h-1 rounded-full bg-edge/80 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-gold-deep to-gold transition-all duration-200"
+                style={{ width: `${Math.max(3, (transcribing.progress || 0) * 100)}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-slate-500">
+              Whisper runs entirely on this device via WebAssembly — nothing leaves the browser.
+            </p>
+          </div>
+        ) : canTranscribe ? (
+          <>
+            <button
+              onClick={() => transcribeReel(activeReel.id)}
+              className="btn-gold mx-auto mt-4"
+              title="Transcribe this reel's audio with on-device Whisper (WebAssembly, offline)"
+            >
+              <Mic size={14} /> Transcribe audio on this device
+            </button>
+            <p className="text-[11px] text-slate-500 mt-2">
+              English speech works best · 1 video/audio minute ≈ under a minute of decoding · zero keys, zero network.
+            </p>
+          </>
+        ) : (
+          activeReel.audioUrl && (
+            <p className="text-[11px] text-coral mt-3">
+              This browser cannot transcribe media files — paste archival text instead.
+            </p>
+          )
+        )}
       </div>
     );
   }
@@ -72,6 +113,11 @@ export default function TranscriptView() {
           <span className="chip bg-gold/10 border-gold/30 text-gold text-[10px] ml-1">
             {segments.length} segments
           </span>
+          {activeReel.transcriptSource && (
+            <span className="chip bg-mint/10 border-mint/30 text-mint text-[10px]">
+              <Mic size={10} /> on-device
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3 flex-wrap text-[10.5px] text-slate-500">
           <span className="inline-flex items-center gap-1.5"><MousePointerClick size={12} className="text-gold/70" /> Click a highlighted term for its Context Card</span>
@@ -144,7 +190,7 @@ function buildParts(text, hits, openContext) {
   sorted.forEach((h, i) => {
     if (h.start < cursor) return;
     if (h.start > cursor) out.push(<span key={`t${i}`}>{text.slice(cursor, h.start)}</span>);
-    const color = TYPE_HEX[typeOf(h)] || '#94A3B8';
+    const color = TYPE_HEX[typeOf(h)] || '#475569';
     out.push(<Term key={`h${i}`} text={text.slice(h.start, h.end)} h={h} color={color} onOpen={openContext} />);
     cursor = h.end;
   });

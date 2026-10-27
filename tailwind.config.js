@@ -1,33 +1,60 @@
 /** @type {import('tailwindcss').Config} */
+/* ---------------------------------------------------------------------------
+ * "Editorial daylight" theme — modelled on the CenterStage reference:
+ *   #FBFBFC dot-grid canvas · white cards · zinc-900 ink · amber gradient CTAs
+ *   Inter body · Plus Jakarta Sans headings.
+ * The class tokens keep their original names, so every component picks up the
+ * daylight values without markup changes.
+ * ------------------------------------------------------------------------- */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {
-        obsidian: '#0B0F17',
-        panel: '#151C28',
-        panel2: '#1A2233',
-        panel3: '#212B3F',
-        edge: '#263149',
+        /* canvas: reference #FBFBFC */
+        obsidian: '#FBFBFC',
+        panel: '#FFFFFF',
+        panel2: '#F7F7F8',
+        panel3: '#F1F1F3',
+        edge: '#E7E7EA',
+        /* amber family — the reference's star accent */
         gold: {
-          DEFAULT: '#F59E0B',
-          soft: '#FBBF24',
+          DEFAULT: '#D97706',
+          soft: '#F59E0B',
           deep: '#B45309',
         },
-        heritage: '#D9A441',
-        coral: '#FB7185',
-        iris: '#A78BFA',
-        aqua: '#22D3EE',
-        mint: '#34D399',
+        heritage: '#A16207',
+        coral: '#E11D48',
+        iris: '#7C3AED',
+        aqua: '#0891B2',
+        mint: '#059669',
+        /* warm ink used for soft overlays (bg-white/5 → subtle zinc tint) */
+        white: '#18181B',
+        /* zinc-flavoured inverted slate ramp */
+        slate: {
+          50: '#FAFAFA',
+          100: '#18181B',
+          200: '#27272A',
+          300: '#3F3F46',
+          400: '#52525B',
+          500: '#71717A',
+          600: '#A1A1AA',
+          700: '#BFC1C6',
+          800: '#D9DADD',
+          900: '#EFEFF1',
+        },
       },
       fontFamily: {
-        display: ['"Iowan Old Style"', '"Palatino Linotype"', '"Book Antiqua"', 'Palatino', 'Georgia', 'serif'],
+        display: ['"Plus Jakarta Sans"', 'Inter', 'ui-sans-serif', 'system-ui', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+        brand: ['"Plus Jakarta Sans"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         sans: ['Inter', 'ui-sans-serif', 'system-ui', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
         mono: ['"JetBrains Mono"', '"Cascadia Code"', 'SFMono-Regular', 'Consolas', '"Liberation Mono"', 'monospace'],
       },
       boxShadow: {
-        glow: '0 0 24px rgba(245,158,11,0.18)',
-        card: '0 10px 30px -12px rgba(0,0,0,0.6)',
+        glow: '0 0 22px rgba(245,158,11,0.30)',
+        /* reference shadow-diffused */
+        card: '0 1px 3px rgba(0,0,0,0.03), 0 6px 16px rgba(0,0,0,0.035)',
+        xs: '0 1px 2px rgba(0,0,0,0.05)',
       },
       keyframes: {
         fadeUp: {

@@ -100,12 +100,12 @@ export const CURATED_EDGES = [
 
 /** Node-type palette (matches the color-coded spec + reels in emerald). */
 export const NODE_COLORS = {
-  person: { ring: '#F59E0B', fill: '#B45309', label: 'Historical Figures' },
-  place: { ring: '#22D3EE', fill: '#0E7490', label: 'Locations & Regions' },
-  culture: { ring: '#A78BFA', fill: '#6D28D9', label: 'Traditions & Idioms' },
-  event: { ring: '#FB7185', fill: '#BE123C', label: 'Historical Events' },
-  tech: { ring: '#818CF8', fill: '#4338CA', label: 'Institutions & Technology' },
-  reel: { ring: '#34D399', fill: '#047857', label: 'Archival Reels' },
+  person: { ring: '#D97706', fill: '#92400E', label: 'Historical Figures' },
+  place: { ring: '#0891B2', fill: '#155E75', label: 'Locations & Regions' },
+  culture: { ring: '#7C3AED', fill: '#5B21B6', label: 'Traditions & Idioms' },
+  event: { ring: '#E11D48', fill: '#9F1239', label: 'Historical Events' },
+  tech: { ring: '#4F46E5', fill: '#3730A3', label: 'Institutions & Technology' },
+  reel: { ring: '#059669', fill: '#065F46', label: 'Archival Reels' },
 };
 
 export function nodeTypeColor(type) {

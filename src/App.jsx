@@ -43,11 +43,11 @@ export default function App() {
   }, [toggle, setTab, setPaletteOpen]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-obsidian relative">
-      {/* ambient museum glow */}
+    <div className="min-h-screen flex flex-col relative">
+      {/* ambient museum glow — reference-style soft washes */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/3 w-[46rem] h-[46rem] rounded-full bg-gold/[0.05] blur-3xl" />
-        <div className="absolute top-1/3 -right-40 w-[40rem] h-[40rem] rounded-full bg-aqua/[0.04] blur-3xl" />
+        <div className="absolute -top-40 left-1/3 w-[46rem] h-[46rem] rounded-full bg-gold/[0.06] blur-3xl" />
+        <div className="absolute top-1/3 -right-40 w-[40rem] h-[40rem] rounded-full bg-aqua/[0.05] blur-3xl" />
         <div className="absolute bottom-0 -left-40 w-[36rem] h-[36rem] rounded-full bg-iris/[0.05] blur-3xl" />
       </div>
 
@@ -63,7 +63,7 @@ export default function App() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`chip shrink-0 ${tab === t.id ? 'bg-gold/15 text-gold border-gold/40' : 'bg-white/5 text-slate-300 border-white/10'}`}
+              className={`chip shrink-0 ${tab === t.id ? 'bg-[#18181B] text-[#FAFAFA] border-[#18181B]' : 'bg-panel text-slate-500 border-edge'}`}
             >
               <span className="opacity-60">{t.num}</span> {t.label}
             </button>

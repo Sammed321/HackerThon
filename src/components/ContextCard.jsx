@@ -11,15 +11,15 @@ const TYPE_META = {
   idiom: { icon: Languages, cls: 'text-iris border-iris/40 bg-iris/10', name: 'Cultural Idiom' },
   dialect: { icon: Mic2, cls: 'text-iris border-iris/40 bg-iris/10', name: 'Dialect Phrase' },
   tradition: { icon: Users, cls: 'text-iris border-iris/40 bg-iris/10', name: 'Cultural Tradition' },
-  institution: { icon: Landmark, cls: 'text-indigo-300 border-indigo-400/40 bg-indigo-400/10', name: 'Institution' },
-  tech: { icon: Braces, cls: 'text-indigo-300 border-indigo-400/40 bg-indigo-400/10', name: 'Technology' },
+  institution: { icon: Landmark, cls: 'text-iris border-iris/40 bg-iris/10', name: 'Institution' },
+  tech: { icon: Braces, cls: 'text-iris border-iris/40 bg-iris/10', name: 'Technology' },
   event: { icon: History, cls: 'text-coral border-coral/40 bg-coral/10', name: 'Historical Event' },
   person: { icon: Users, cls: 'text-gold border-gold/40 bg-gold/10', name: 'Historical Figure' },
 };
 
 export default function ContextCard() {
   const app = useApp();
-  const { contextEntry, closeContext, openContext, reels, setActiveId, graph, highlightSegment, setTab, setDrawerNode, pushToast } = app;
+  const { contextEntry, closeContext, reels, setActiveId, graph, highlightSegment, setTab, setDrawerNode, pushToast } = app;
   if (!contextEntry) return null;
 
   const isEntry = Boolean(contextEntry && contextEntry.aliases && contextEntry.literal);

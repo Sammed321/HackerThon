@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   Play, Pause, SkipBack, SkipForward, Film, FileAudio, FileText, Mic2, Clapperboard,
   CloudFog, Sparkles, MapPin, Languages, Timer, Database, Lightbulb, Library, Upload,
+  Volume2, VolumeX,
 } from 'lucide-react';
 import { useApp, useT } from '../store.jsx';
 import WaveformCanvas, { makeMarkers } from './WaveformCanvas.jsx';
@@ -97,7 +98,7 @@ function ReelRail() {
  * ------------------------------------------------------------------ */
 function Player({ openEntryAt }) {
   const app = useApp();
-  const { activeReel: reel, playing, play, pause, toggle, seek, engine, grain, setGrain, restored, setRestored } = app;
+  const { activeReel: reel, playing, play, pause, toggle, seek, engine, grain, setGrain, restored, setRestored, narrate, toggleNarrate } = app;
   const time = useT(8);
   const markers = useMemo(() => makeMarkers(reel), [reel]);
   const markTimes = useMemo(() => {
@@ -177,6 +178,15 @@ function Player({ openEntryAt }) {
           <span className="text-gold">{fmtTime(time)}</span> <span className="text-slate-600">/ {fmtTime(reel.duration)}</span>
         </div>
         <div className="flex-1 flex items-center justify-end gap-2">
+          {!reel.audioUrl && (
+            <button
+              onClick={toggleNarrate}
+              className={`btn text-[11px] !px-2.5 !py-1.5 ${narrate ? 'bg-mint/10 text-mint border-mint/30' : 'bg-white/5 text-slate-400 border-white/10'}`}
+              title={narrate ? 'Mute transcript narration (the tape bed keeps playing)' : 'Read the transcript aloud over the tape bed'}
+            >
+              {narrate ? <Volume2 size={12} /> : <VolumeX size={12} />} Narrate
+            </button>
+          )}
           <button onClick={() => setGrain(!grain)} className={`btn text-[11px] !px-2.5 !py-1.5 ${grain ? 'bg-gold/15 text-gold border-gold/40' : 'bg-white/5 text-slate-400 border-white/10'}`} title="Toggle vintage film grain + scanlines">
             <Film size={12} /> Grain
           </button>
@@ -304,7 +314,7 @@ function ContextRail() {
         <ul className="text-[11.5px] text-slate-400 space-y-1.5 leading-relaxed list-none">
           <li>◆ <b className="text-slate-300">Space</b> plays; markers jump between decoded cultural moments.</li>
           <li>◆ Each colored term opens its <b className="text-slate-300">Context Card</b> — literal vs cultural meaning, evolution, related reels.</li>
-          <li>◆ Upload your own MP3/MP4 via <b className="text-slate-300">Ingest Reel</b> — waveform audio-reactive via Web Audio API.</li>
+          <li>◆ Upload your own MP3/MP4 via <b className="text-slate-300">Ingest Reel</b> — waveform audio-reactive via Web Audio, then hit <b className="text-slate-300">Transcribe audio on this device</b> (on-device Whisper, no network).</li>
         </ul>
       </div>
     </aside>

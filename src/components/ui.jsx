@@ -1,13 +1,13 @@
 import React from 'react';
 
-export function Ring({ value = 0, max = 100, size = 56, stroke = 5, color = '#F59E0B', children }) {
+export function Ring({ value = 0, max = 100, size = 56, stroke = 5, color = '#D97706', children }) {
   const pct = Math.max(0, Math.min(1, value / max));
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="ring-track">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(148,163,184,0.15)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(100,116,139,0.22)" strokeWidth={stroke} />
         <circle
           cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
           strokeDasharray={c} strokeDashoffset={c * (1 - pct)} strokeLinecap="round"

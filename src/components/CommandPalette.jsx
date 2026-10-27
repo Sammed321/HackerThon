@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../store.jsx';
 import { DEMO_PROMPTS } from '../engine/rag.js';
-import { iiifManifest, dublinCoreJson, dublinCoreXml, wikimediaMarkdown } from '../engine/exporter.js';
+import { iiifManifest, dublinCoreXml, wikimediaMarkdown } from '../engine/exporter.js';
 import { downloadFile } from '../utils/toolkit.js';
 
 export default function CommandPalette() {
